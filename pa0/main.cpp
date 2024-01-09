@@ -39,10 +39,22 @@ int main(){
     // matrix output
     std::cout << "Example of output \n";
     std::cout << i << std::endl;
+
+    /**
+     * TO DO
+     */
     // matrix add i + j
+    std::cout << "matrix add i + j: " << std::endl;
+    std::cout << i + j << std::endl;
     // matrix scalar multiply i * 2.0
+    std::cout << "matrix scalar multiply i * 2.0: " << std::endl;
+    std::cout << i * 2.0 << std::endl;
     // matrix multiply i * j
+    std::cout << "matrix multiply i * j: " << std::endl;
+    std::cout << i * j << std::endl;
     // matrix multiply vector i * v
+    std::cout << "matrix multiply vector i * v: " << std::endl;
+    std::cout << i * v << std::endl;
     
     return 0;
 }
