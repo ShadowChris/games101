@@ -2,6 +2,8 @@
 #include<eigen3/Eigen/Core>
 #include<eigen3/Eigen/Dense>
 #include<iostream>
+using namespace std;
+using namespace Eigen;
 
 int main(){
 
@@ -41,7 +43,7 @@ int main(){
     std::cout << i << std::endl;
 
     /**
-     * TO DO
+     * Exercise1
      */
     // matrix add i + j
     std::cout << "matrix add i + j: " << std::endl;
@@ -55,6 +57,32 @@ int main(){
     // matrix multiply vector i * v
     std::cout << "matrix multiply vector i * v: " << std::endl;
     std::cout << i * v << std::endl;
+
+    cout << endl;
+    /**
+     * Exercise2
+     * 描述：给定一个点P=(2,1), 将该点绕原点先逆时针旋转45◦，再平移(1,2), 
+     * 计算出变换后点的坐标（要求用齐次坐标进行计算）。
+     */
+    cout << "Exercise2: " << endl;
+    Vector3d p, o, pv;
+    // p点
+    p << 2,1,1;
+
+    // 变换矩阵
+    Matrix3d trMatrix;
+
+    // 弧度制角度
+    double r = 45.0 * M_PI / 180;
+
+    trMatrix << cos(r), -sin(r), 1, 
+                sin(r), cos(r), 2, 
+                0, 0, 1;
+
+    Vector3d res = trMatrix * p;
+
+    cout << "matrix: " << endl << trMatrix << endl;
+    cout << "result vector:" << endl << res << endl;
     
     return 0;
 }
