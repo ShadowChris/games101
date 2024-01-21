@@ -5,7 +5,7 @@ find_package(OpenCV REQUIRED)
 
 set(CMAKE_CXX_STANDARD 17)
 
-include_directories(/usr/local/include)
+include_directories(/usr/include)
 # mac的路径
 include_directories(/opt/homebrew/include)
 
