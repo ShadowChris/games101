@@ -8,7 +8,7 @@
 #include "rasterizer.hpp"
 #include <opencv2/opencv.hpp>
 #include <math.h>
-
+using namespace std;
 
 rst::pos_buf_id rst::rasterizer::load_positions(const std::vector<Eigen::Vector3f> &positions)
 {
@@ -43,6 +43,24 @@ auto to_vec4(const Eigen::Vector3f& v3, float w = 1.0f)
 static bool insideTriangle(int x, int y, const Vector3f* _v)
 {   
     // TODO : Implement this function to check if the point (x, y) is inside the triangle represented by _v[0], _v[1], _v[2]
+
+    // 用二维叉积判断两个向量的方向
+    Vector3f v01 = _v[1] - _v[0];
+    Vector3f v12 = _v[2] - _v[1];
+    Vector3f v20 = _v[0] - _v[2];
+
+    Vector3f p(x, y, 1);
+
+    Vector3f v0p = p - _v[0];
+    Vector3f v1p = p - _v[1];
+    Vector3f v2p = p - _v[2];
+
+    float val0 = v01.cross(v0p).z();
+    float val1 = v12.cross(v1p).z();
+    float val2 = v20.cross(v2p).z();
+
+    return (val0 > 0 && val1 > 0 && val2 > 0) 
+        || (val0 < 0 && val1 < 0 && val2 < 0);
 }
 
 static std::tuple<float, float, float> computeBarycentric2D(float x, float y, const Vector3f* v)
@@ -104,7 +122,13 @@ void rst::rasterizer::draw(pos_buf_id pos_buffer, ind_buf_id ind_buffer, col_buf
 
 //Screen space rasterization
 void rst::rasterizer::rasterize_triangle(const Triangle& t) {
+    // v：三角形三个顶点的坐标
     auto v = t.toVector4();
+    // cout << "-----start-------" << endl;
+    // for (int i = 0; i < v.size(); i++) {
+    //     cout <<"v" << i << ": " << v[i] << endl;
+    // }
+    // cout << endl << "-----end---------" << endl;
     
     // TODO : Find out the bounding box of current triangle.
     // iterate through the pixel and find if the current pixel is inside the triangle
@@ -116,6 +140,45 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
     //z_interpolated *= w_reciprocal;
 
     // TODO : set the current pixel (use the set_pixel function) to the color of the triangle (use getColor function) if it should be painted.
+
+
+    // 1 找到三角形的bounding box
+    float minXValue = DBL_MAX, minYValue = DBL_MAX, 
+    maxXValue = DBL_MIN, maxYValue = DBL_MIN;
+
+    for (int i = 0; i < v.size(); i++) {
+        minXValue = min(minXValue, v[i].x());
+        minYValue = min(minYValue, v[i].y());
+        maxXValue = max(maxXValue, v[i].x());
+        maxYValue = max(maxYValue, v[i].y());
+    }
+    // 2 对bounding box的x，y坐标取整数
+    int minX = floor(minXValue);
+    int minY = floor(minYValue);
+    int maxX = ceil(maxXValue);
+    int maxY = ceil(maxYValue);
+    // 3 遍历bounding box的像素
+    for (int x = minX; x <= maxX; x++) {
+        for (int y = minY; y <= maxY; y++) {
+            // 判断像素是否在三角形内
+            if (insideTriangle(x, y, t.v)) {
+                // z-buffer算法
+                // 插值，算出z轴深度
+                auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
+                float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+                float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+                z_interpolated *= w_reciprocal;
+                // 深度测试
+                int index = get_index(x, y);
+                if (z_interpolated < depth_buf[index]) {
+                    depth_buf[index] = z_interpolated;
+                    Eigen::Vector3f color = t.getColor();
+                    set_pixel(Eigen::Vector3f(x, y, z_interpolated), color);
+                }
+            }
+        }
+    }
+
 }
 
 void rst::rasterizer::set_model(const Eigen::Matrix4f& m)
