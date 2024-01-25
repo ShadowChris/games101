@@ -9,6 +9,16 @@
 #include <opencv2/opencv.hpp>
 #include <math.h>
 using namespace std;
+/**
+ * 作业笔记
+ * 1. 作业参考：https://blog.csdn.net/Xuuuuuuuuuuu/article/details/124172397
+ * 2. 像素坐标系：原点在左上角，x轴向右，y轴向下；并且为整数
+ * 3. 绘制像素：set_pixel()中的x、y需要+0.5，表示像素中心点
+ * 4. 标准坐标转重心坐标：computeBarycentric2D()
+ * 5. 超采样需要把insideTriangle()中的int改成float，才能在一个像素中判断多个点
+ * 6. 超采样如果分4个子点，在三角形内的每个子点的比率为1/4，最后要统计在三角形内的子点个数，再除以4，乘到颜色上
+ * 7. 黑边处理：待解决
+*/
 
 rst::pos_buf_id rst::rasterizer::load_positions(const std::vector<Eigen::Vector3f> &positions)
 {
@@ -39,8 +49,9 @@ auto to_vec4(const Eigen::Vector3f& v3, float w = 1.0f)
     return Vector4f(v3.x(), v3.y(), v3.z(), w);
 }
 
-
-static bool insideTriangle(int x, int y, const Vector3f* _v)
+// 超采样需要把原本的int改成float
+// static bool insideTriangle(int x, int y, const Vector3f* _v)
+static bool insideTriangle(float x, float y, const Vector3f* _v)
 {   
     // TODO : Implement this function to check if the point (x, y) is inside the triangle represented by _v[0], _v[1], _v[2]
 
@@ -121,6 +132,7 @@ void rst::rasterizer::draw(pos_buf_id pos_buffer, ind_buf_id ind_buffer, col_buf
 }
 
 //Screen space rasterization
+// 作业2提高题：https://blog.csdn.net/Xuuuuuuuuuuu/article/details/124172397
 void rst::rasterizer::rasterize_triangle(const Triangle& t) {
     // v：三角形三个顶点的坐标
     auto v = t.toVector4();
@@ -157,14 +169,34 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
     int minY = floor(minYValue);
     int maxX = ceil(maxXValue);
     int maxY = ceil(maxYValue);
+
+    vector<vector<float>> superSampling = {
+        {0.25, 0.25},
+        {0.75, 0.25},
+        {0.25, 0.75},
+        {0.75, 0.75}
+    };
     // 3 遍历bounding box的像素
     for (int x = minX; x <= maxX; x++) {
         for (int y = minY; y <= maxY; y++) {
+
+            // 提高作业：超采样
+            int count = 0;
+            for (int i = 0; i < superSampling.size(); i++) {
+                float x_ss = x + superSampling[i][0];
+                float y_ss = y + superSampling[i][1];
+                if (insideTriangle(x_ss, y_ss, t.v)) {
+                    count++;
+                }
+            }
+            // 如果超采样的像素都不在三角形内，则不绘制
+            if (count <= 0) continue;
+
             // 判断像素是否在三角形内
-            if (insideTriangle(x, y, t.v)) {
+            if (insideTriangle(x + 0.5, y + 0.5, t.v)) {
                 // z-buffer算法
-                // 插值，算出z轴深度
-                auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
+                // computeBarycentric2D：标准坐标转重心坐标。加0.5是为了取像素中心点
+                auto[alpha, beta, gamma] = computeBarycentric2D(x + 0.5, x + 0.5, t.v);
                 float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
                 float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
                 z_interpolated *= w_reciprocal;
@@ -172,9 +204,12 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
                 int index = get_index(x, y);
                 if (z_interpolated < depth_buf[index]) {
                     depth_buf[index] = z_interpolated;
-                    Eigen::Vector3f color = t.getColor();
+                    // Eigen::Vector3f color = t.getColor();
+                    // 提高作业：超采样
+                    Eigen::Vector3f color = t.getColor() * count / superSampling.size();
                     set_pixel(Eigen::Vector3f(x, y, z_interpolated), color);
                 }
+
             }
         }
     }
