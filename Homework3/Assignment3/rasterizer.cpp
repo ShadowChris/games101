@@ -6,6 +6,7 @@
 #include "rasterizer.hpp"
 #include <opencv2/opencv.hpp>
 #include <math.h>
+using namespace std;
 
 
 rst::pos_buf_id rst::rasterizer::load_positions(const std::vector<Eigen::Vector3f> &positions)
@@ -256,6 +257,7 @@ static Eigen::Vector2f interpolate(float alpha, float beta, float gamma, const E
     return Eigen::Vector2f(u, v);
 }
 
+// 1
 //Screen space rasterization
 void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& view_pos) 
 {
@@ -279,8 +281,83 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eig
     // Use: payload.view_pos = interpolated_shadingcoords;
     // Use: Instead of passing the triangle's color directly to the frame buffer, pass the color to the shaders first to get the final color;
     // Use: auto pixel_color = fragment_shader(payload);
+    // *******************************************************
 
- 
+    // v：三角形三个顶点的坐标
+    auto v = t.toVector4();
+
+    // 1 找到三角形的bounding box
+    float minXValue = DBL_MAX, minYValue = DBL_MAX, 
+    maxXValue = DBL_MIN, maxYValue = DBL_MIN;
+
+    for (int i = 0; i < v.size(); i++) {
+        minXValue = min(minXValue, v[i].x());
+        minYValue = min(minYValue, v[i].y());
+        maxXValue = max(maxXValue, v[i].x());
+        maxYValue = max(maxYValue, v[i].y());
+    }
+    // 2 对bounding box的x，y坐标取整数
+    int minX = floor(minXValue);
+    int minY = floor(minYValue);
+    int maxX = ceil(maxXValue);
+    int maxY = ceil(maxYValue);
+
+    // vector<vector<float>> superSampling = {
+    //     {0.25, 0.25},
+    //     {0.75, 0.25},
+    //     {0.25, 0.75},
+    //     {0.75, 0.75}
+    // };
+    // 3 遍历bounding box的像素
+    for (int x = minX; x <= maxX; x++) {
+        for (int y = minY; y <= maxY; y++) {
+
+            // // 提高作业：超采样
+            // int count = 0;
+            // for (int i = 0; i < superSampling.size(); i++) {
+            //     float x_ss = x + superSampling[i][0];
+            //     float y_ss = y + superSampling[i][1];
+            //     if (insideTriangle(x_ss, y_ss, t.v)) {
+            //         count++;
+            //     }
+            // }
+            // // 如果超采样的像素都不在三角形内，则不绘制
+            // if (count <= 0) continue;
+
+            // 判断像素是否在三角形内
+            if (insideTriangle(x + 0.5, y + 0.5, t.v)) {
+                // z-buffer算法
+                // computeBarycentric2D：标准坐标转重心坐标。加0.5是为了取像素中心点
+                auto[alpha, beta, gamma] = computeBarycentric2D(x + 0.5, y + 0.5, t.v);
+                float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+                float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+                z_interpolated *= w_reciprocal;
+                // *******************************************************
+
+                // to do
+                // 深度测试
+                int index = get_index(x, y);
+                if (z_interpolated < depth_buf[index]) {
+                    // 1. 颜色插值
+                    auto interpolated_color = interpolate(alpha, beta, gamma, t.color[0], t.color[1], t.color[2], 1);
+                    // 2. 法向量插值
+                    auto interpolated_normal = interpolate(alpha, beta, gamma, t.normal[0], t.normal[1], t.normal[2], 1);
+                    // 3. 纹理坐标插值
+                    auto interpolated_texcoords = interpolate(alpha, beta, gamma, t.tex_coords[0], t.tex_coords[1], t.tex_coords[2], 1);
+                    // 4. 视图坐标插值
+                    auto interpolated_shadingcoords = interpolate(alpha, beta, gamma, view_pos[0], view_pos[1], view_pos[2], 1);
+
+                    fragment_shader_payload payload(interpolated_color, interpolated_normal.normalized(), interpolated_texcoords, texture ? &*texture : nullptr);
+                    payload.view_pos = interpolated_shadingcoords;
+                    // Use: Instead of passing the triangle's color directly to the frame buffer, pass the color to the shaders first to get the final color;
+                    auto pixel_color = fragment_shader(payload);
+                    
+                    depth_buf[index] = z_interpolated;
+                    set_pixel(Eigen::Vector2i(x, y), pixel_color);
+                }
+            }
+        }
+    }
 }
 
 void rst::rasterizer::set_model(const Eigen::Matrix4f& m)
