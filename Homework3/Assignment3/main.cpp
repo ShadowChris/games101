@@ -177,6 +177,29 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
         
+        // 0. 计算法向量n、入射光向量l、观测方向v
+        auto n_vector = normal.normalized();
+        auto l_vector = (light.position - point).normalized();
+        auto v_vector = (eye_pos - point).normalized();
+
+        // 点乘求距离r^2
+        float r_square = (point - light.position).dot(point - light.position);
+
+        auto test_reflection = Eigen::Vector3f().cwiseProduct(Eigen::Vector3f());
+        // 1. 漫反射 diffusion reflection
+        // auto l_diffusion = test_reflection;
+        auto l_diffusion = kd.cwiseProduct(light.intensity / r_square) * std::max(0.0f, n_vector.dot(l_vector));
+        
+        // 2. 高光反射 specular
+        auto l_specular = test_reflection;
+        // TO DO:
+        
+
+        // 3. 漫反射 ambient
+        // auto l_abmient = test_reflection;
+        auto l_abmient = ka.cwiseProduct(amb_light_intensity);
+        
+        result_color = l_diffusion + l_specular + l_abmient;
     }
 
     return result_color * 255.f;
