@@ -158,6 +158,7 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
     Eigen::Vector3f kd = payload.color;
     Eigen::Vector3f ks = Eigen::Vector3f(0.7937, 0.7937, 0.7937);
 
+    // 有两个点光源
     auto l1 = light{{20, 20, 20}, {500, 500, 500}};
     auto l2 = light{{-20, 20, 0}, {500, 500, 500}};
 
@@ -181,25 +182,26 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
         auto n_vector = normal.normalized();
         auto l_vector = (light.position - point).normalized();
         auto v_vector = (eye_pos - point).normalized();
+        auto h_vector = (v_vector + l_vector).normalized();
 
         // 点乘求距离r^2
-        float r_square = (point - light.position).dot(point - light.position);
+        float r_square = (light.position - point).dot(light.position - point);
 
+        // 测试用，零值
         auto test_reflection = Eigen::Vector3f().cwiseProduct(Eigen::Vector3f());
+
         // 1. 漫反射 diffusion reflection
         // auto l_diffusion = test_reflection;
         auto l_diffusion = kd.cwiseProduct(light.intensity / r_square) * std::max(0.0f, n_vector.dot(l_vector));
-        
-        // 2. 高光反射 specular
-        auto l_specular = test_reflection;
-        // TO DO:
-        
-
-        // 3. 漫反射 ambient
+        // 2. 镜面反射 specular
+        // auto l_specular = test_reflection;
+        auto l_specular = ks.cwiseProduct(light.intensity / r_square) * std::pow(std::max(0.0f, n_vector.dot(h_vector)), p);
+        // 3. 环境光 ambient   
         // auto l_abmient = test_reflection;
         auto l_abmient = ka.cwiseProduct(amb_light_intensity);
         
-        result_color = l_diffusion + l_specular + l_abmient;
+        // 易错：点光源的光需要累加
+        result_color += l_diffusion + l_specular + l_abmient;
     }
 
     return result_color * 255.f;
