@@ -117,7 +117,7 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
     if (payload.texture)
     {
         // TODO: Get the texture value at the texture coordinates of the current fragment
-
+        return_color = payload.texture->getColor(payload.tex_coords.x(), payload.tex_coords.y());
     }
     Eigen::Vector3f texture_color;
     texture_color << return_color.x(), return_color.y(), return_color.z();
@@ -145,7 +145,18 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
     {
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
+        auto n_vector = normal.normalized();
+        auto l_vector = (light.position - point).normalized();
+        auto v_vector = (eye_pos - point).normalized();
+        auto h_vector = (v_vector + l_vector).normalized();
 
+        float r_square = (light.position - point).dot(light.position - point);
+
+        auto l_diffusion = kd.cwiseProduct(light.intensity / r_square) * std::max(0.0f, n_vector.dot(l_vector));
+        auto l_specular = ks.cwiseProduct(light.intensity / r_square) * std::pow(std::max(0.0f, n_vector.dot(h_vector)), p);
+        auto l_abmient = ka.cwiseProduct(amb_light_intensity);
+        
+        result_color += l_diffusion + l_specular + l_abmient;
     }
 
     return result_color * 255.f;
@@ -158,6 +169,7 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
     Eigen::Vector3f kd = payload.color;
     Eigen::Vector3f ks = Eigen::Vector3f(0.7937, 0.7937, 0.7937);
 
+    // 有两个点光源
     auto l1 = light{{20, 20, 20}, {500, 500, 500}};
     auto l2 = light{{-20, 20, 0}, {500, 500, 500}};
 
@@ -177,6 +189,30 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
         
+        // 0. 计算法向量n、入射光向量l、观测方向v
+        auto n_vector = normal.normalized();
+        auto l_vector = (light.position - point).normalized();
+        auto v_vector = (eye_pos - point).normalized();
+        auto h_vector = (v_vector + l_vector).normalized();
+
+        // 点乘求距离r^2
+        float r_square = (light.position - point).dot(light.position - point);
+
+        // 测试用，零值
+        auto test_reflection = Eigen::Vector3f().cwiseProduct(Eigen::Vector3f());
+
+        // 1. 漫反射 diffusion reflection
+        // auto l_diffusion = test_reflection;
+        auto l_diffusion = kd.cwiseProduct(light.intensity / r_square) * std::max(0.0f, n_vector.dot(l_vector));
+        // 2. 镜面反射 specular
+        // auto l_specular = test_reflection;
+        auto l_specular = ks.cwiseProduct(light.intensity / r_square) * std::pow(std::max(0.0f, n_vector.dot(h_vector)), p);
+        // 3. 环境光 ambient   
+        // auto l_abmient = test_reflection;
+        auto l_abmient = ka.cwiseProduct(amb_light_intensity);
+
+        // 易错：点光源的光需要累加
+        result_color += l_diffusion + l_specular + l_abmient;
     }
 
     return result_color * 255.f;
@@ -224,7 +260,18 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
     {
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
+        auto n_vector = normal.normalized();
+        auto l_vector = (light.position - point).normalized();
+        auto v_vector = (eye_pos - point).normalized();
+        auto h_vector = (v_vector + l_vector).normalized();
 
+        float r_square = (light.position - point).dot(light.position - point);
+
+        auto l_diffusion = kd.cwiseProduct(light.intensity / r_square) * std::max(0.0f, n_vector.dot(l_vector));
+        auto l_specular = ks.cwiseProduct(light.intensity / r_square) * std::pow(std::max(0.0f, n_vector.dot(h_vector)), p);
+        auto l_abmient = ka.cwiseProduct(amb_light_intensity);
+        
+        result_color += l_diffusion + l_specular + l_abmient;
 
     }
 
@@ -317,6 +364,7 @@ int main(int argc, const char** argv)
             std::cout << "Rasterizing using the texture shader\n";
             active_shader = texture_fragment_shader;
             texture_path = "spot_texture.png";
+            // texture_path = "rock.png";
             r.set_texture(Texture(obj_path + texture_path));
         }
         else if (argc == 3 && std::string(argv[2]) == "normal")
