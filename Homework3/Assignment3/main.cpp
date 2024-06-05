@@ -8,6 +8,11 @@
 #include "Texture.hpp"
 #include "OBJ_Loader.h"
 
+/**
+ * 1. 作业3资料：https://blog.csdn.net/qq_41835314/article/details/124666935
+ * 2. 凹凸贴图bump mapping、法线贴图、切线空间、TBN矩阵的关系：https://www.cnblogs.com/HDDDDDD/p/15335800.html
+ * 3. 
+ */
 Eigen::Matrix4f get_view_matrix(Eigen::Vector3f eye_pos)
 {
     Eigen::Matrix4f view = Eigen::Matrix4f::Identity();
@@ -247,8 +252,11 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
     // Vector t = (x*y/sqrt(x*x+z*z),sqrt(x*x+z*z),z*y/sqrt(x*x+z*z))
     // Vector b = n cross product t
     // Matrix TBN = [t b n]
+
+
     // dU = kh * kn * (h(u+1/w,v)-h(u,v))
     // dV = kh * kn * (h(u,v+1/h)-h(u,v))
+
     // Vector ln = (-dU, -dV, 1)
     // Position p = p + kn * n * h(u,v)
     // Normal n = normalize(TBN * ln)
@@ -307,8 +315,24 @@ Eigen::Vector3f bump_fragment_shader(const fragment_shader_payload& payload)
     // Vector t = (x*y/sqrt(x*x+z*z),sqrt(x*x+z*z),z*y/sqrt(x*x+z*z))
     // Vector b = n cross product t
     // Matrix TBN = [t b n]
+
+    // 1. 获取TBN矩阵。TBN矩阵：可以实现切线空间与模型空间的相互转换，t、b、n分别是切线、副法线、法线
+    // 资料：https://blog.csdn.net/Motarookie/article/details/123507610
+    auto x = normal.x();
+    auto y = normal.y();
+    auto z = normal.z();
+
+    auto t = Eigen::Vector3f(x * y / sqrt(x * x + z * z), sqrt(x * x + z * z), z * y / sqrt(x * x + z * z));
+    auto b = normal.cross(t);
+    Eigen::Matrix3f tbn;
+    tbn << t, b, normal;
+    // tbn << t.transpose(), b.transpose(), normal.transpose();
+
     // dU = kh * kn * (h(u+1/w,v)-h(u,v))
     // dV = kh * kn * (h(u,v+1/h)-h(u,v))
+    // 2. 计算dU、dV
+    
+    
     // Vector ln = (-dU, -dV, 1)
     // Normal n = normalize(TBN * ln)
 
