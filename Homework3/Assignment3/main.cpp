@@ -242,6 +242,7 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
     float p = 150;
 
     Eigen::Vector3f color = payload.color; 
+    // point的含义是当前片元的位置，片元是三角形的一个顶点
     Eigen::Vector3f point = payload.view_pos;
     Eigen::Vector3f normal = payload.normal;
 
@@ -252,15 +253,32 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
     // Vector t = (x*y/sqrt(x*x+z*z),sqrt(x*x+z*z),z*y/sqrt(x*x+z*z))
     // Vector b = n cross product t
     // Matrix TBN = [t b n]
+    auto x = normal.x();
+    auto y = normal.y();
+    auto z = normal.z();
 
+    auto t = Eigen::Vector3f(x * y / sqrt(x * x + z * z), sqrt(x * x + z * z), z * y / sqrt(x * x + z * z));
+    auto b = normal.cross(t);
+    Eigen::Matrix3f tbn;
+    tbn << t, b, normal;
 
     // dU = kh * kn * (h(u+1/w,v)-h(u,v))
     // dV = kh * kn * (h(u,v+1/h)-h(u,v))
+    auto u = payload.tex_coords.x();
+    auto v = payload.tex_coords.y();
+    auto w = payload.texture->width;
+    auto h = payload.texture->height;
+
+    auto dU = kh * kn * (payload.texture->getColor(u + 1.0f / w, v).norm() - payload.texture->getColor(u, v).norm());
+    auto dV = kh * kn * (payload.texture->getColor(u, v + 1.0f / h).norm() - payload.texture->getColor(u, v).norm());
 
     // Vector ln = (-dU, -dV, 1)
     // Position p = p + kn * n * h(u,v)
     // Normal n = normalize(TBN * ln)
-
+    Eigen::Vector3f ln;
+    ln << -dU, -dV, 1.0f;
+    normal = (tbn * ln).normalized();
+    point += kn * normal * payload.texture->getColor(u, v).norm();
 
     Eigen::Vector3f result_color = {0, 0, 0};
 
@@ -280,7 +298,6 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
         auto l_abmient = ka.cwiseProduct(amb_light_intensity);
         
         result_color += l_diffusion + l_specular + l_abmient;
-
     }
 
     return result_color * 255.f;
@@ -326,16 +343,35 @@ Eigen::Vector3f bump_fragment_shader(const fragment_shader_payload& payload)
     auto b = normal.cross(t);
     Eigen::Matrix3f tbn;
     tbn << t, b, normal;
+
+    //打log，查看t,b,normal,tbn的矩阵数据是否正确
+    // std::cout << "@@@@@@@@@@@@@@@@@@@@@@"<< std::endl;
+    // std::cout << "t: " << t << std::endl;
+    // std::cout << "b: " << b << std::endl;
+    // std::cout << "normal: " << normal << std::endl;
+    // std::cout << "TBN矩阵: " << tbn << std::endl;
+    // std::cout << "@@@@@@@@@@@@@@@@@@@@@@"<< std::endl;
     // tbn << t.transpose(), b.transpose(), normal.transpose();
 
+    // 2. 计算dU、dV，这里的dU和dV对应的是老师课上给的dp/du和dp/dp/dv
     // dU = kh * kn * (h(u+1/w,v)-h(u,v))
     // dV = kh * kn * (h(u,v+1/h)-h(u,v))
-    // 2. 计算dU、dV
+    // 纹理坐标的x、y就是u、v
+    auto u = payload.tex_coords.x();
+    auto v = payload.tex_coords.y();
+    // w、h是纹理的宽、高
+    auto w = payload.texture->width;
+    auto h = payload.texture->height;
+    // h()是高度，在法线贴图里高度则表示坐标(u,v)对应顶点的颜色（RGB值）
+    auto dU = kh * kn * (payload.texture->getColor(u + 1.0f / w, v).norm() - payload.texture->getColor(u, v).norm());
+    auto dV = kh * kn * (payload.texture->getColor(u, v + 1.0f / h).norm() - payload.texture->getColor(u, v).norm());
     
-    
+    // 3. 计算ln，并利用tbn矩阵将局部坐标转换为世界坐标（法线贴图的法线是局部坐标）
     // Vector ln = (-dU, -dV, 1)
     // Normal n = normalize(TBN * ln)
-
+    Eigen::Vector3f ln;
+    ln << -dU, -dV, 1.0f;
+    normal = (tbn * ln).normalized();
 
     Eigen::Vector3f result_color = {0, 0, 0};
     result_color = normal;
