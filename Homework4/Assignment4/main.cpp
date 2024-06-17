@@ -33,15 +33,34 @@ void naive_bezier(const std::vector<cv::Point2f> &points, cv::Mat &window)
 cv::Point2f recursive_bezier(const std::vector<cv::Point2f> &control_points, float t) 
 {
     // TODO: Implement de Casteljau's algorithm
-    return cv::Point2f();
+    std::vector<cv::Point2f> dp;
+    // 初始化dp数组
+    for (int i = 0; i < control_points.size(); i++) {
+        dp.push_back(control_points[i]);
+    }
 
+    // 第一层：阶数，需要运算size - 1次
+    for (int k = 1; k < control_points.size(); k++) {
+        // 第二层：遍历相邻点
+        for (int i = 0; i < control_points.size() - k; i++) {
+            // 递推公式：当前点 = 当前点和下个点的插值，pi = pi + t(pi+1 - pi)
+            // dp[i] = (1 - t) * dp[i] + t * dp[i + 1];
+            dp[i] += t * (dp[i + 1] - dp[i]);
+        }
+    }
+    return dp[0];
 }
 
 void bezier(const std::vector<cv::Point2f> &control_points, cv::Mat &window) 
 {
     // TODO: Iterate through all t = 0 to t = 1 with small steps, and call de Casteljau's 
     // recursive Bezier algorithm.
-
+    for (float t = 0; t <= 1; t += 0.001) {
+        // 调用递归函数
+        auto point = recursive_bezier(control_points, t);
+        // RGB颜色赋值
+        window.at<cv::Vec3b>(point.y, point.x)[1] = 255;
+    }
 }
 
 int main() 
@@ -63,7 +82,7 @@ int main()
         if (control_points.size() == 4) 
         {
             naive_bezier(control_points, window);
-            //   bezier(control_points, window);
+            bezier(control_points, window);
 
             cv::imshow("Bezier Curve", window);
             cv::imwrite("my_bezier_curve.png", window);
