@@ -389,9 +389,14 @@ int main(int argc, const char** argv)
     std::string filename = "output.png";
     objl::Loader Loader;
     std::string obj_path = "../models/spot/";
-
+    // std::string obj_path = "../models/Crate/";
+    // std::string obj_path = "../models/cube/";
+    // std::string obj_path = "../models/rock/";
     // Load .obj File
     bool loadout = Loader.LoadFile("../models/spot/spot_triangulated_good.obj");
+    // bool loadout = Loader.LoadFile("../models/Crate/Crate1.obj");
+    // bool loadout = Loader.LoadFile("../models/cube/cube.obj");
+    // bool loadout = Loader.LoadFile("../models/rock/rock.obj");
     for(auto mesh:Loader.LoadedMeshes)
     {
         for(int i=0;i<mesh.Vertices.size();i+=3)
@@ -410,6 +415,9 @@ int main(int argc, const char** argv)
     rst::rasterizer r(700, 700);
 
     auto texture_path = "hmap.jpg";
+    // auto texture_path = "crate_1.jpg";
+    // auto texture_path = "wall1.tif";
+    // auto texture_path = "rock.png";
     r.set_texture(Texture(obj_path + texture_path));
 
     std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = phong_fragment_shader;
@@ -424,6 +432,8 @@ int main(int argc, const char** argv)
             std::cout << "Rasterizing using the texture shader\n";
             active_shader = texture_fragment_shader;
             texture_path = "spot_texture.png";
+            // texture_path = "crate_1.jpg";
+            // texture_path = "wall1.tif";
             // texture_path = "rock.png";
             r.set_texture(Texture(obj_path + texture_path));
         }
