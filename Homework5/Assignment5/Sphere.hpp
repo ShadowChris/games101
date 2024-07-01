@@ -30,7 +30,7 @@ public:
 
         return true;
     }
-
+    // 球中心连向交点就是法向量方向，无st纹理坐标
     void getSurfaceProperties(const Vector3f& P, const Vector3f&, const uint32_t&, const Vector2f&,
                               Vector3f& N, Vector2f&) const override
     {

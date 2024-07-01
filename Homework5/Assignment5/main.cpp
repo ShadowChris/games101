@@ -7,6 +7,7 @@
 // In the main function of the program, we create the scene (create objects and lights)
 // as well as set the options for the render (image width and height, maximum recursion
 // depth, field-of-view, etc.). We then call the render function().
+// 参考资料：https://blog.csdn.net/weixin_44491423/article/details/127424179
 int main()
 {
     Scene scene(1280, 960);

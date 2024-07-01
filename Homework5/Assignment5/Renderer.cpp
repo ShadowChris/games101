@@ -128,13 +128,16 @@ Vector3f castRay(
     if (depth > scene.maxDepth) {
         return Vector3f(0.0,0.0,0.0);
     }
-
+    // 默认背景颜色
     Vector3f hitColor = scene.backgroundColor;
+    // trace()：判断光线是否打到物体
     if (auto payload = trace(orig, dir, scene.get_objects()); payload)
     {
+        // hitPoint为交点坐标，payload->tNear即为公式需要求的t，需要在Triangle.hpp中的rayTriangleIntersect()实现
         Vector3f hitPoint = orig + dir * payload->tNear;
         Vector3f N; // normal
-        Vector2f st; // st coordinates
+        Vector2f st; // st coordinates，即纹理坐标
+        // 获取交点所在平面法向量与交点纹理坐标（球和三角形实现方法不同）
         payload->hit_obj->getSurfaceProperties(hitPoint, dir, payload->index, payload->uv, N, st);
         switch (payload->hit_obj->materialType) {
             case REFLECTION_AND_REFRACTION:
@@ -228,9 +231,21 @@ void Renderer::Render(const Scene& scene)
             // TODO: Find the x and y positions of the current pixel to get the direction
             // vector that passes through it.
             // Also, don't forget to multiply both of them with the variable *scale*, and
-            // x (horizontal) variable with the *imageAspectRatio*            
+            // x (horizontal) variable with the *imageAspectRatio*
+            
+            // 屏幕坐标系->NDC（归一化）坐标系->世界坐标系
+            // 步骤：https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-generating-camera-rays/generating-camera-rays.html
+            // 看看imageAspectRatio和scale的含义
 
-            Vector3f dir = Vector3f(x, y, -1); // Don't forget to normalize this direction!
+            // 1. 屏幕坐标系->NDC坐标系
+            float pixelNDCx = (i + 0.5) / scene.width;
+            float pixelNDCy = (j + 0.5) / scene.height;
+
+            // 2. NDC坐标系->世界坐标系
+            x = (2 * pixelNDCx - 1) * imageAspectRatio * scale;
+            y = (1 - 2 * pixelNDCy) * scale;
+
+            Vector3f dir = normalize(Vector3f(x, y, -1)); // Don't forget to normalize this direction!
             framebuffer[m++] = castRay(eye_pos, dir, scene, 0);
         }
         UpdateProgress(j / (float)scene.height);
