@@ -44,13 +44,14 @@ cv::Point2f recursive_bezier(const std::vector<cv::Point2f> &control_points, flo
         // 第二层：遍历相邻点
         for (int i = 0; i < control_points.size() - k; i++) {
             // 递推公式：当前点 = 当前点和下个点的插值，pi = pi + t(pi+1 - pi)
-            // dp[i] = (1 - t) * dp[i] + t * dp[i + 1];
-            dp[i] += t * (dp[i + 1] - dp[i]);
+            dp[i] = (1 - t) * dp[i] + t * dp[i + 1];
+            // dp[i] += t * (dp[i + 1] - dp[i]);
         }
     }
     return dp[0];
 }
 
+// todo: 反走样 - https://blog.csdn.net/Q_pril/article/details/123818346
 void bezier(const std::vector<cv::Point2f> &control_points, cv::Mat &window) 
 {
     // TODO: Iterate through all t = 0 to t = 1 with small steps, and call de Casteljau's 
