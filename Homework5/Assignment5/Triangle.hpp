@@ -4,6 +4,12 @@
 
 #include <cstring>
 
+/**
+ * 地面出现蓝点的原因：判断重心坐标位置时，可能会取到三角形的边界点。
+ * 解决方法：因此需要取一个很小的数，把落在边上的点算入三角形
+*/
+const float EPSILON = 0.00001;
+
 bool rayTriangleIntersect(const Vector3f& v0, const Vector3f& v1, const Vector3f& v2, const Vector3f& orig,
                           const Vector3f& dir, float& tnear, float& u, float& v)
 {
@@ -19,12 +25,12 @@ bool rayTriangleIntersect(const Vector3f& v0, const Vector3f& v1, const Vector3f
     Vector3f S = orig - v0;
     Vector3f S1 = crossProduct(dir, E2);
     Vector3f S2 = crossProduct(S, E1);
-
+    
     float coeff = 1.0 / dotProduct(S1, E1); // 共同系数
     float t = coeff * dotProduct(S2, E2);
     float b1 = coeff * dotProduct(S1, S);
     float b2 = coeff * dotProduct(S2, dir);
-    if (t >= 0 && b1 >= 0 && b2 >= 0 && (1 - b1 - b2) >= 0)
+    if (t >= 0 && b1 >= 0 && b2 >= 0 && (1 - b1 - b2) >= 0 - EPSILON)
     {
         isIntersect = true;
         tnear = t;
