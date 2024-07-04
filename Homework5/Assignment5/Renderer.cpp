@@ -80,6 +80,7 @@ float fresnel(const Vector3f &I, const Vector3f &N, const float &ior)
 // \param[out] *hitObject stores the pointer to the intersected object (used to retrieve material information, etc.)
 // \param isShadowRay is it a shadow ray. We can return from the function sooner as soon as we have found a hit.
 // [/comment]
+// 判断光线是否与场景中的物体有交点，并储存最近的交点信息
 std::optional<hit_payload> trace(
         const Vector3f &orig, const Vector3f &dir,
         const std::vector<std::unique_ptr<Object> > &objects)
@@ -121,6 +122,7 @@ std::optional<hit_payload> trace(
 // If the surface is diffuse/glossy we use the Phong illumation model to compute the color
 // at the intersection point.
 // [/comment]
+// 对不同材质的表面进行不同的着色逻辑处理
 Vector3f castRay(
         const Vector3f &orig, const Vector3f &dir, const Scene& scene,
         int depth)
@@ -137,8 +139,10 @@ Vector3f castRay(
         Vector3f hitPoint = orig + dir * payload->tNear;
         Vector3f N; // normal
         Vector2f st; // st coordinates，即纹理坐标
+        
         // 获取交点所在平面法向量与交点纹理坐标（球和三角形实现方法不同）
         payload->hit_obj->getSurfaceProperties(hitPoint, dir, payload->index, payload->uv, N, st);
+        
         switch (payload->hit_obj->materialType) {
             case REFLECTION_AND_REFRACTION:
             {
@@ -221,6 +225,7 @@ void Renderer::Render(const Scene& scene)
     // Use this variable as the eye position to start your rays.
     Vector3f eye_pos(0);
     int m = 0;
+    // 遍历屏幕空间每一个像素点
     for (int j = 0; j < scene.height; ++j)
     {
         for (int i = 0; i < scene.width; ++i)
