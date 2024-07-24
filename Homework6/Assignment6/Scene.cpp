@@ -55,6 +55,7 @@ Vector3f Scene::castRay(const Ray &ray, int depth) const
     if (depth > this->maxDepth) {
         return Vector3f(0.0,0.0,0.0);
     }
+    // 本作业目标：加速找到射线打到的最近的物体
     Intersection intersection = Scene::intersect(ray);
     Material *m = intersection.m;
     Object *hitObject = intersection.obj;

@@ -11,7 +11,7 @@ BVHAccel::BVHAccel(std::vector<Object*> p, int maxPrimsInNode,
     time(&start);
     if (primitives.empty())
         return;
-
+    // 构建BVH树，返回树节点
     root = recursiveBuild(primitives);
 
     time(&stop);
@@ -24,7 +24,11 @@ BVHAccel::BVHAccel(std::vector<Object*> p, int maxPrimsInNode,
         "\rBVH Generation complete: \nTime Taken: %i hrs, %i mins, %i secs\n\n",
         hrs, mins, secs);
 }
-
+/**
+ * 首先每个object会有一个bounding box，一开始构建bvh树时，遍历object，
+ * 再逐渐把每个object的bound进行Union操作，最终合成一个大的bound。
+ * 因此非叶子节点会保存一个包含了多个object的大bounding box
+*/
 BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
 {
     BVHBuildNode* node = new BVHBuildNode();
@@ -53,7 +57,9 @@ BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
         for (int i = 0; i < objects.size(); ++i)
             centroidBounds =
                 Union(centroidBounds, objects[i]->getBounds().Centroid());
+        // 求出x、y、z中边界最大的轴
         int dim = centroidBounds.maxExtent();
+        // 对objects以这个轴坐标大小进行排序，目的是找到中间的重心坐标轴
         switch (dim) {
         case 0:
             std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
@@ -74,7 +80,7 @@ BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
             });
             break;
         }
-
+        // 将物体对半分
         auto beginning = objects.begin();
         auto middling = objects.begin() + (objects.size() / 2);
         auto ending = objects.end();
@@ -105,5 +111,26 @@ Intersection BVHAccel::Intersect(const Ray& ray) const
 Intersection BVHAccel::getIntersection(BVHBuildNode* node, const Ray& ray) const
 {
     // TODO Traverse the BVH to find intersection
+    // 1. 构建光线在三个坐标分量中的正负数组
+    std::array<int, 3> dirIsNeg;
+    dirIsNeg[0] = (ray.direction[0] > 0);
+    dirIsNeg[1] = (ray.direction[1] > 0);
+    dirIsNeg[2] = (ray.direction[2] > 0);
 
+    Intersection inter;
+    // 对于任意结点，如果其boundbox与光线无交点，则不需进一步的判断
+    if(!node->bounds.IntersectP(ray,ray.direction_inv,dirIsNeg)){
+        return inter;
+    }
+    // 找到和光线相交的叶子节点，也就是目标三角形，返回
+    if(node->left == nullptr && node->right == nullptr){
+        return node->object->getIntersection(ray);
+    }
+
+    // 不然就继续递归遍历左右子树
+    Intersection l = getIntersection(node->left,ray);
+    Intersection r = getIntersection(node->right,ray);
+
+    // 返回距离光源进的物体相交信息
+    return l.distance < r.distance ? l : r;
 }

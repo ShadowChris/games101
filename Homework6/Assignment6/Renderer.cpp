@@ -22,6 +22,7 @@ void Renderer::Render(const Scene& scene)
     float imageAspectRatio = scene.width / (float)scene.height;
     Vector3f eye_pos(-1, 5, 10);
     int m = 0;
+    // 遍历屏幕的每个像素，和眼睛位置的连线发出射线
     for (uint32_t j = 0; j < scene.height; ++j) {
         for (uint32_t i = 0; i < scene.width; ++i) {
             // generate primary ray direction
@@ -35,6 +36,9 @@ void Renderer::Render(const Scene& scene)
             // *scale*, and x (horizontal) variable with the *imageAspectRatio*
 
             // Don't forget to normalize this direction!
+            Vector3f dir = normalize(Vector3f(x, y, -1));
+            Ray ray(eye_pos, dir);
+            framebuffer[m++] = scene.castRay(ray, 0);
 
         }
         UpdateProgress(j / (float)scene.height);

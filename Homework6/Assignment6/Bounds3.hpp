@@ -12,6 +12,10 @@
 class Bounds3
 {
   public:
+    /**
+    * bounding box的斜对角两个点，能确定一个bounding box，、
+    * 详见第三个初始化函数
+    */
     Vector3f pMin, pMax; // two points to specify the bounding box
     Bounds3()
     {
@@ -89,14 +93,49 @@ class Bounds3
 };
 
 
-
+// https://blog.csdn.net/Q_pril/article/details/124054123
 inline bool Bounds3::IntersectP(const Ray& ray, const Vector3f& invDir,
                                 const std::array<int, 3>& dirIsNeg) const
 {
     // invDir: ray direction(x,y,z), invDir=(1.0/x,1.0/y,1.0/z), use this because Multiply is faster that Division
     // dirIsNeg: ray direction(x,y,z), dirIsNeg=[int(x>0),int(y>0),int(z>0)], use this to simplify your logic
     // TODO test if ray bound intersects
-    
+
+    // 1. 通过包围盒的信息与公式，算出从原点到平面所需要的时间
+    auto t_min_x = (pMin.x - ray.origin.x) * invDir[0];
+    auto t_min_y = (pMin.y - ray.origin.y) * invDir[1];
+    auto t_min_z = (pMin.z - ray.origin.z) * invDir[2];
+    auto t_max_x = (pMax.x - ray.origin.x) * invDir[0];
+    auto t_max_y = (pMax.y - ray.origin.y) * invDir[1];
+    auto t_max_z = (pMax.z - ray.origin.z) * invDir[2];
+
+    // 2. 根据光线方向矫正出入射平面
+    // dirIsNeg是表面光线的方向，如果是正方向则为1，pmin-O为最短路径，反之为负方向0，pmax-O是最短路径。
+    // 因此需要矫正：将负方向的min与max时间交换
+    if (!dirIsNeg[0]) {
+        auto t = t_min_x;
+        t_min_x = t_max_x;
+        t_max_x = t;
+    }
+    if (!dirIsNeg[1]) {
+        auto t = t_min_y;
+        t_min_y = t_max_y;
+        t_max_y = t;
+    }
+    if (!dirIsNeg[2]) {
+        auto t = t_min_z;
+        t_min_z = t_max_z;
+        t_max_z = t;
+    }
+
+    // 3. 计算光线进与出包围盒的时间
+    auto t_enter = std::max(t_min_x, std::max(t_min_y, t_min_z));
+    auto t_exit = std::min(t_max_x, std::min(t_max_y, t_max_z));
+
+    if (t_enter < t_exit && t_exit >= 0) {
+        return true;
+    }
+    return false;
 }
 
 inline Bounds3 Union(const Bounds3& b1, const Bounds3& b2)
